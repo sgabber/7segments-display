@@ -3,12 +3,14 @@ package it.sga.displaymgr;
 import com.pi4j.io.gpio.*;
 import it.sga.displaymgr.utils.Letters;
 import it.sga.displaymgr.utils.Segment;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
 
 import static it.sga.displaymgr.utils.Segment.*;
 
+/**
+ * This is the main class. You call the constructor with the map of segments -> pins
+ */
 public class Display {
     private static final long MILLIS_BETWEEN_REPAINTS = 2;
 
@@ -38,7 +40,27 @@ public class Display {
         grounds = list;
 
         if (digits > 1) {
-            Thread innerThread = new Thread(this.innerRunnable);
+            Runnable innerRunnable = () -> {
+                try {
+                    while (!stopped) {
+                        synchronized (SYNC) {
+                            for (int i = 0; i < digits && i < textList.size(); i++) {
+                                turnOffAll();
+                                grounds.get(i).low();
+                                turnOnLetterPins(textList.get(i));
+                                //noinspection BusyWait
+                                Thread.sleep(MILLIS_BETWEEN_REPAINTS);
+                                grounds.forEach(GpioPinDigitalOutput::high);
+
+                            }
+                        }
+                    }
+
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            };
+            Thread innerThread = new Thread(innerRunnable);
             innerThread.start();
         }
     }
@@ -61,9 +83,8 @@ public class Display {
 
     public void write(String s) {
 
-
         synchronized (SYNC) {
-            textList= calculateTextList(s, digits);
+            textList= calculateTextList(s);
         }
         if (digits == 1) {
             turnOffAll();
@@ -71,7 +92,7 @@ public class Display {
         }
     }
 
-    public static List<String> calculateTextList(String text, int digits) {
+    public static List<String> calculateTextList(String text) {
         String[] innerList = text.split("");
         String prev = "";
         ArrayList<String> innerTextList = new ArrayList<>();
@@ -100,32 +121,6 @@ public class Display {
             stopped = true;
         }
     }
-
-    private final Runnable innerRunnable = new Runnable() {
-
-        @Override
-        public void run() {
-            try {
-                while (!stopped) {
-                    synchronized (SYNC) {
-                        for (int i = 0; i < digits && i < textList.size(); i++) {
-                            turnOffAll();
-                            grounds.get(i).low();
-                            turnOnLetterPins(textList.get(i));
-                            //noinspection BusyWait
-                            Thread.sleep(MILLIS_BETWEEN_REPAINTS);
-                            grounds.forEach(GpioPinDigitalOutput::high);
-
-                        }
-                    }
-                }
-
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-    };
 
     private void turnOffAll() {
         segmentsMap.values().forEach(GpioPinDigitalOutput::low);
