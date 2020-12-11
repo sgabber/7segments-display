@@ -21,6 +21,46 @@ public class Display {
     private final int digits;
     private List<String> textList = new ArrayList<>();
 
+    /**
+     * @param a         GPIO for the segment A (es GPIO 10)
+     * @param b         GPIO for the segment b
+     * @param c         GPIO for the segment c
+     * @param d         GPIO for the segment d
+     * @param e         GPIO for the segment e
+     * @param f         GPIO for the segment f
+     * @param g         GPIO for the segment g
+     * @param dp        GPIO for the dot.
+     * @param inGrounds GPIOS for the grounds
+     * @see Display
+     */
+    public Display(String a, String b, String c, String d, String e, String f, String g, String dp, String... inGrounds) {
+        this(getSegmentStringHashMap(a, b, c, d, e, f, g, dp), Arrays.asList(inGrounds));
+    }
+
+    private static HashMap<Segment, String> getSegmentStringHashMap(String a, String b, String c, String d, String e, String f, String g, String dp) {
+        HashMap<Segment, String> s = new HashMap<>();
+        s.put(A, a);
+        s.put(B, b);
+        s.put(C, c);
+        s.put(D, d);
+        s.put(E, e);
+        s.put(F, f);
+        s.put(G, g);
+        s.put(DP, dp);
+        return s;
+    }
+
+    /**
+     * Initializes a display. If it has multiple digits a thread is started.
+     * A 7 segments 1 digit or n digits multiplexed display is set up by connecting
+     * the 7 segments and the grounds to raspberry pins. If there are more than 1 digits
+     * then the writing is multiplexed and this code switches quickly between digits to
+     * turn them on. Only 1 digit is on at a time but the action is so fast it looks like
+     * all n digits are on instead.
+     *
+     * @param pinout map segment -> pin name
+     * @param ground list of the ground pins
+     */
     public Display(Map<Segment, String> pinout, List<String> ground) {
         GpioController gpio = GpioFactory.getInstance();
         digits = ground.size();
@@ -65,10 +105,11 @@ public class Display {
         }
     }
 
+
     /**
      * Turns on each segment for 1 second
      *
-     * @throws InterruptedException
+     * @throws InterruptedException if the thread sleep is interrupted
      */
     public void pinDebugging() throws InterruptedException {
         for (GpioPinDigitalOutput d : grounds) {
@@ -84,7 +125,7 @@ public class Display {
     public void write(String s) {
 
         synchronized (SYNC) {
-            textList= calculateTextList(s);
+            textList = calculateTextList(s);
         }
         if (digits == 1) {
             turnOffAll();
