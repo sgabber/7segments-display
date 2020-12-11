@@ -1,2 +1,5 @@
 # Project exclude paths
 /target/
+/7segments-display.iml
+/7SegmentsDisplay.iml
+/.idea/
