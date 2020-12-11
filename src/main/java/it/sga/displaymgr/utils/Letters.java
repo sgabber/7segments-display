@@ -45,7 +45,7 @@ public class Letters {
     static final List<Segment> _Z = Arrays.asList(A, B, D, E, G);
     static final List<Segment> _0 = Arrays.asList(A, B, C, D, E, F);
     static final List<Segment> _1 = Arrays.asList(B, C);
-    static final List<Segment> _2 = Arrays.asList(B, C, D, F, G);
+    static final List<Segment> _2 = Arrays.asList(A, B, D, E, G);
     static final List<Segment> _3 = Arrays.asList(B, C, D, A, G);
     static final List<Segment> _4 = Arrays.asList(F, G, B, C);
     static final List<Segment> _5 = Arrays.asList(A, C, D, F, G);

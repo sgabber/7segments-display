@@ -10,19 +10,18 @@ import java.util.*;
 import static it.sga.displaymgr.utils.Segment.*;
 
 public class Display {
-    private static final long MILLIS_BETWEEN_REPAINTS = 20;
+    private static final long MILLIS_BETWEEN_REPAINTS = 2;
 
     private static final Object SYNC = new Object();
 
     private final Map<Segment, GpioPinDigitalOutput> segmentsMap = new HashMap<>();
     private final List<GpioPinDigitalOutput> grounds;
     private final int digits;
-    private Thread innerThread;
+    private List<String> textList = new ArrayList<>();
 
-    private String text = "";
-
-    public Display(int digits, Map<Segment, String> pinout, List<String> ground) {
+    public Display(Map<Segment, String> pinout, List<String> ground) {
         GpioController gpio = GpioFactory.getInstance();
+        digits = ground.size();
         for (Segment r : Arrays.asList(A, B, C, D, E, F, G, DP)) {
             String pinName = pinout.get(r);
             Pin pinByName = RaspiPin.getPinByName(pinName);
@@ -37,7 +36,11 @@ public class Display {
             list.add(gpioPinDigitalOutput);
         }
         grounds = list;
-        this.digits = digits;
+
+        if (digits > 1) {
+            Thread innerThread = new Thread(this.innerRunnable);
+            innerThread.start();
+        }
     }
 
     /**
@@ -46,6 +49,9 @@ public class Display {
      * @throws InterruptedException
      */
     public void pinDebugging() throws InterruptedException {
+        for (GpioPinDigitalOutput d : grounds) {
+            d.low();
+        }
         for (GpioPinDigitalOutput c : segmentsMap.values()) {
             c.high();
             Thread.sleep(1000);
@@ -55,18 +61,36 @@ public class Display {
 
     public void write(String s) {
 
-        text = StringUtils.rightPad(s, digits).substring(0, digits);
+
+        synchronized (SYNC) {
+            textList= calculateTextList(s, digits);
+        }
         if (digits == 1) {
             turnOffAll();
-            turnOnLetterPins(text); //text length should be 1
-        } else {
-            if (innerThread == null) {
-                innerThread = new Thread(this.innerRunnable);
-            } else {
-                stop();
-            }
-            innerThread.start();
+            turnOnLetterPins(textList.get(0)); //text length should be 1
         }
+    }
+
+    public static List<String> calculateTextList(String text, int digits) {
+        String[] innerList = text.split("");
+        String prev = "";
+        ArrayList<String> innerTextList = new ArrayList<>();
+
+        for (String l : innerList) {
+            if (prev.equals("")) {
+                prev = l;
+            } else if (l.equals(".") && !prev.equals(".")) {
+                innerTextList.add(prev + ".");
+                prev = "";
+            } else {
+                innerTextList.add(prev);
+                prev = l;
+            }
+        }
+        if (!prev.equals("")) {
+            innerTextList.add(prev);
+        }
+        return innerTextList;
     }
 
     private boolean stopped = false;
@@ -81,46 +105,26 @@ public class Display {
 
         @Override
         public void run() {
-
-
-            String[] innerList = text.split("");
-            String prev = "";
-            List<String> newList = new ArrayList<>();
-
-            for (String l : innerList) {
-                if (prev.equals("")) {
-                    prev = l;
-                } else if (l.equals(".") && !prev.equals(".")) {
-                    newList.add(prev + ".");
-                    prev = "";
-                } else {
-                    newList.add(prev);
-                    prev = l;
-                }
-            }
-            if (!prev.equals("")) {
-                newList.add(prev);
-            }
             try {
-                exec(newList);
+                while (!stopped) {
+                    synchronized (SYNC) {
+                        for (int i = 0; i < digits && i < textList.size(); i++) {
+                            turnOffAll();
+                            grounds.get(i).low();
+                            turnOnLetterPins(textList.get(i));
+                            //noinspection BusyWait
+                            Thread.sleep(MILLIS_BETWEEN_REPAINTS);
+                            grounds.forEach(GpioPinDigitalOutput::high);
+
+                        }
+                    }
+                }
+
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
 
-        private void exec(List<String> newList) throws InterruptedException {
-            while (!stopped) {
-                for (int i = 0; i < digits; i++) {
-                    turnOffAll();
-                    grounds.forEach(GpioPinDigitalOutput::high);
-                    grounds.get(i).low();
-                    turnOffAll();
-                    turnOnLetterPins(newList.get(i));
-                    //noinspection BusyWait
-                    Thread.sleep(MILLIS_BETWEEN_REPAINTS);
-                }
-            }
-        }
     };
 
     private void turnOffAll() {
