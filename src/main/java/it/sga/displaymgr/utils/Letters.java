@@ -55,6 +55,9 @@ public class Letters {
     static final List<Segment> _9 = Arrays.asList(A, B, C, D, F, G);
     static final List<Segment> _hyphen = Arrays.asList(G);
     static final List<Segment> _dot = Arrays.asList(DP);
+    static final List<Segment> _degree = Arrays.asList(A, B, G, F);
+    static final List<Segment> _underscore = Arrays.asList(D);
+
 
     private static final HashMap<String, List<Segment>> lettersTranslate = new HashMap<>();
 
@@ -110,6 +113,8 @@ public class Letters {
         lettersTranslate.put("8", _8);
         lettersTranslate.put("9", _9);
         lettersTranslate.put("-", _hyphen);
+        lettersTranslate.put("°", _degree);
+        lettersTranslate.put("_", _underscore);
 
         Stream<Pair<String, ArrayList<Segment>>> pairStream = lettersTranslate.keySet().stream().map(k ->
                 {
